@@ -1,0 +1,187 @@
+/user
+add address=[only allowed IP] disabled=no group=full name=[name] password=[password]
+
+/ip service
+set telnet address=[only allowed IP] disabled=yes
+set ftp address=[only allowed IP] disabled=yes
+set www address=[only allowed IP] disabled=yes port=9580
+set ssh address=[only allowed IP] disabled=no port=9522
+set www-ssl address=[only allowed IP]
+set api address=[only allowed IP] disabled=yes
+set winbox address=[only allowed IP] port=23489
+set api-ssl address=[only allowed IP] disabled=yes
+
+
+
+/tool bandwidth-server
+set authenticate=no enabled=no
+
+/ip dns set allow-remote-requests=no
+
+/ip proxy set enabled=no
+
+/ip socks set enabled=no
+
+/ip upnp set enabled=no
+
+/ip cloud
+set update-time=no
+
+
+
+
+/ip firewall address-list
+add address=[allowed IP] list=Device_Access_IP
+add address=[allowed IP] list=Device_Access_IP
+add address=[allowed IP] list=Device_Access_IP
+add address=[allowed IP] list=Device_Access_IP
+
+
+/ip firewall filter
+add action=accept chain=forward src-address-list=Device_Access_IP
+add action=accept chain=input src-address-list=Device_Access_IP
+
+add action=drop chain=input comment="Blocked_IP_Src" src-address-list=Blocked_IP_Src
+add action=drop chain=forward comment="Blocked_IP_Src" src-address-list=Blocked_IP_Src
+add action=drop chain=forward comment="Blocked_IP_Src" dst-address-list=Blocked_IP_Dst
+
+add action=accept chain=input comment="allow new connections" \
+connection-state=new dst-port=18291 protocol=tcp \
+src-address-list=Device_Access_IP
+
+
+add action=drop chain=input comment="drop invalid connections" \
+    connection-state=invalid
+add action=drop chain=forward comment="drop invalid connections" \
+    connection-state=invalid
+
+add action=drop chain=input comment=Blocked_IP_Src src-address-list=\
+    Blocked_IP_Src
+add action=drop chain=forward comment=Blocked_IP_Src src-address-list=\
+    Blocked_IP_Src
+add action=drop chain=forward comment=Blocked_IP_Src dst-address-list=\
+    Blocked_IP_Dst
+add action=accept chain=input comment="allow new connections" connection-state=\
+    new dst-port=18291 protocol=tcp src-address-list=Device_Access_IP
+add action=drop chain=input comment="drop invalid connections" \
+    connection-state=invalid
+add action=drop chain=forward comment="drop invalid connections" \
+    connection-state=invalid
+add action=jump chain=forward jump-target=icmp protocol=icmp
+add action=jump chain=input jump-target=icmp protocol=icmp
+add action=accept chain=icmp comment="echo reply" icmp-options=0:0 protocol=\
+    icmp
+add action=accept chain=icmp comment="net unreachable" icmp-options=3:0 \
+    protocol=icmp
+add action=accept chain=icmp comment="host unreachable" icmp-options=3:1 \
+    protocol=icmp
+add action=accept chain=icmp comment="allow source quench" icmp-options=4:0 \
+    protocol=icmp
+add action=accept chain=icmp comment="allow echo request" icmp-options=8:0 \
+    protocol=icmp
+add action=accept chain=icmp comment="allow time exceed" icmp-options=11:0 \
+    protocol=icmp
+add action=accept chain=icmp comment="allow parameter bad" icmp-options=12:0 \
+    protocol=icmp
+add action=drop chain=icmp comment="deny all other types"
+add action=drop chain=input comment="drop ftp brute forcers" dst-port=21 \
+    protocol=tcp src-address-list=ftp_blacklist
+add action=accept chain=output content="530 Login incorrect" dst-limit=\
+    1/1m,9,dst-address/1m protocol=tcp
+add action=add-dst-to-address-list address-list=ftp_blacklist \
+    address-list-timeout=3h chain=output content="530 Login incorrect" \
+    protocol=tcp
+add action=drop chain=input comment="drop ssh brute forcers" dst-port=22 \
+    protocol=tcp src-address-list=ssh_blacklist
+add action=add-src-to-address-list address-list=ssh_blacklist \
+    address-list-timeout=1w3d chain=input connection-state=new dst-port=22 \
+    protocol=tcp src-address-list=ssh_stage3
+add action=add-src-to-address-list address-list=ssh_stage3 \
+    address-list-timeout=1m chain=input connection-state=new dst-port=22 \
+    protocol=tcp src-address-list=ssh_stage2
+add action=add-src-to-address-list address-list=ssh_stage2 \
+    address-list-timeout=1m chain=input connection-state=new dst-port=22 \
+    protocol=tcp src-address-list=ssh_stage1
+add action=add-src-to-address-list address-list=ssh_stage1 \
+    address-list-timeout=1m chain=input connection-state=new dst-port=22 \
+    protocol=tcp
+add action=drop chain=forward comment="drop ssh brute downstream" dst-port=22 \
+    protocol=tcp src-address-list=ssh_blacklist
+add action=drop chain=input comment="drop telnet brute forcers" dst-port=23 \
+    protocol=tcp src-address-list=telnet_blacklist
+add action=add-src-to-address-list address-list=telnet_blacklist \
+    address-list-timeout=1w3d chain=input connection-state=new dst-port=23 \
+    protocol=tcp src-address-list=telnet_stage3
+add action=add-src-to-address-list address-list=telnet_stage3 \
+    address-list-timeout=1m chain=input connection-state=new dst-port=23 \
+    protocol=tcp src-address-list=telnet_stage2
+add action=add-src-to-address-list address-list=telnet_stage2 \
+    address-list-timeout=1m chain=input connection-state=new dst-port=23 \
+    protocol=tcp src-address-list=telnet_stage1
+add action=add-src-to-address-list address-list=telnet_stage1 \
+    address-list-timeout=1m chain=input connection-state=new dst-port=23 \
+    protocol=tcp
+add action=drop chain=forward comment="drop telnet brute downstream" dst-port=\
+    23 protocol=tcp src-address-list=telnet_blacklist
+add action=drop chain=input comment="drop winbox brute forcers" dst-port=8291 \
+    protocol=tcp src-address-list=winbox_blacklist
+add action=add-src-to-address-list address-list=winbox_blacklist \
+    address-list-timeout=1w3d chain=input connection-state=new dst-port=8291 \
+    protocol=tcp src-address-list=winbox_stage3
+add action=add-src-to-address-list address-list=winbox_stage3 \
+    address-list-timeout=1m chain=input connection-state=new dst-port=8291 \
+    protocol=tcp src-address-list=winbox_stage2
+add action=add-src-to-address-list address-list=winbox_stage2 \
+    address-list-timeout=1m chain=input connection-state=new dst-port=8291 \
+    protocol=tcp src-address-list=winbox_stage1
+add action=add-src-to-address-list address-list=winbox_stage1 \
+    address-list-timeout=1m chain=input connection-state=new dst-port=8291 \
+    protocol=tcp
+add action=drop chain=forward comment="drop winbox brute downstream" dst-port=\
+    8291 protocol=tcp src-address-list=winbox_blacklist
+add action=add-src-to-address-list address-list="port scanners" \
+    address-list-timeout=2w chain=input comment="Port scanners to list" \
+    protocol=tcp psd=21,3s,3,1
+add action=add-src-to-address-list address-list="port scanners" \
+    address-list-timeout=2w chain=input comment="NMAP FIN Stealth scan" \
+    protocol=tcp tcp-flags=fin,!syn,!rst,!psh,!ack,!urg
+add action=add-src-to-address-list address-list="port scanners" \
+    address-list-timeout=2w chain=input comment="SYN/FIN scan" protocol=tcp \
+    tcp-flags=fin,syn
+add action=add-src-to-address-list address-list="port scanners" \
+    address-list-timeout=2w chain=input comment="SYN/RST scan" protocol=tcp \
+    tcp-flags=syn,rst
+add action=add-src-to-address-list address-list="port scanners" \
+    address-list-timeout=2w chain=input comment="FIN/PSH/URG scan" protocol=tcp \
+    tcp-flags=fin,psh,urg,!syn,!rst,!ack
+add action=add-src-to-address-list address-list="port scanners" \
+    address-list-timeout=2w chain=input comment="ALL/ALL scan" protocol=tcp \
+    tcp-flags=fin,syn,rst,psh,ack,urg
+add action=add-src-to-address-list address-list="port scanners" \
+    address-list-timeout=2w chain=input comment="NMAP NULL scan" protocol=tcp \
+    tcp-flags=!fin,!syn,!rst,!psh,!ack,!urg
+add action=drop chain=input comment="dropping port scanners" src-address-list=\
+    "port scanners"
+add action=drop chain=forward comment="dropping port scanners" \
+    src-address-list="port scanners"
+add action=drop chain=forward comment="deny RPC portmapper" dst-port=111 \
+    protocol=tcp
+add action=drop chain=forward comment="deny PRC portmapper" dst-port=111 \
+    protocol=udp
+add action=drop chain=forward comment="deny NetBus" dst-port=12345-12346 \
+    protocol=tcp
+add action=drop chain=forward comment="deny NetBus" dst-port=20034 protocol=tcp
+add action=drop chain=forward comment="deny  BackOriffice" dst-port=3133 \
+    protocol=tcp
+add action=drop chain=forward comment="deny NFS" dst-port=2049 protocol=udp
+add action=drop chain=forward comment="deny NFS" dst-port=2049 protocol=tcp
+add action=drop chain=forward comment="deny BackOriffice" dst-port=3133 \
+    protocol=udp
+
+
+/ip settings set tcp-syncookies=yes
+
+/radius add service=login address=[radius server address] secret= [radius secret]
+/user aaa set use-radius=yes
+/user aaa set accounting=yes
+/user aaa set default-group=read
